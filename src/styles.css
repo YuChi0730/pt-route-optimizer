@@ -375,3 +375,34 @@ textarea {
   }
 }
 
+/* ── Route map markers ── */
+.route-map {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(20, 33, 61, 0.08);
+}
+
+.route-marker {
+  background: transparent;
+  border: 0;
+}
+
+.route-marker-pin {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: 3px solid white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Make sure Leaflet panes don't escape rounded corners */
+.leaflet-container {
+  font-family: inherit;
+}
+

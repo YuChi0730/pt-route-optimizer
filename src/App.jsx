@@ -1,4 +1,5 @@
 import { NavLink, Route, Routes } from "react-router-dom";
+import RouteMap from "./components/RouteMap";
 import {
   calculateRouteSummary,
   createGoogleMapsDirectionsUrl,
@@ -700,6 +701,8 @@ function PlannerPage({ draftPlan, patients, onChangeDraft, onOptimize, onSavePla
                   </button>
                 </div>
               </div>
+
+              <RouteMap route={optimization.route} />
 
               <div className="list-stack">
                 {optimization.route.map((stop, index) => (
