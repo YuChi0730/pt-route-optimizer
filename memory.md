@@ -40,7 +40,14 @@
 
 - 目前不需要 `.env` 即可本機試跑
 - 啟動方式：`npm install` 後執行 `npm run dev`
-- 驗證方式：`npm run build` 已通過
+- 驗證方式：`npm run build` 已通過（本機 Windows Rollup native binary 偶有崩潰，Vercel Linux 環境 build 正常）
+
+## Deployment
+
+- GitHub: https://github.com/YuChi0730/pt-route-optimizer
+- Vercel: https://pt-route-optimizer.vercel.app/
+- 部署方式：push 到 `main` → Vercel 自動部署
+- SPA fallback：`vercel.json` 將所有路徑 rewrite 到 `index.html`，避免 React Router 路徑刷新 404
 - 若要進入下一階段，預計會新增：
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
@@ -76,6 +83,8 @@
 
 - 已完成：依計畫書建立 React 初版 MVP 並可本機試用
 - 已完成：建立 `memory.md` 專案記憶
+- 已完成：Git 初始化並推送至 GitHub
+- 已完成：Vercel 部署上線（含 SPA fallback 設定）
 - 進行中：把 MVP 結構整理成可接後端與外部 API 的基礎
 - 待完成：Supabase 串接
 - 待完成：Google Maps 平台 API 串接
