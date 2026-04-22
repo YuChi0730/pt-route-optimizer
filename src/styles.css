@@ -1,0 +1,377 @@
+:root {
+  font-family: "Segoe UI", "Noto Sans TC", sans-serif;
+  color: #14213d;
+  background:
+    radial-gradient(circle at top left, rgba(255, 196, 61, 0.25), transparent 30%),
+    linear-gradient(180deg, #f4f1ea 0%, #f6f9fc 50%, #eef3f7 100%);
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  padding: 28px 20px;
+  background: rgba(20, 33, 61, 0.95);
+  color: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.brand-card,
+.sidebar-panel,
+.panel-card,
+.hero-card,
+.metric-card,
+.location-card,
+.warning-card {
+  border: 1px solid rgba(20, 33, 61, 0.08);
+  border-radius: 24px;
+  box-shadow: 0 20px 60px rgba(20, 33, 61, 0.08);
+}
+
+.brand-card,
+.sidebar-panel {
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.brand-card h1 {
+  margin: 8px 0 12px;
+  font-size: 1.75rem;
+}
+
+.nav-list {
+  display: grid;
+  gap: 10px;
+}
+
+.nav-link {
+  padding: 14px 16px;
+  border-radius: 16px;
+  color: rgba(255, 255, 255, 0.8);
+  transition: 180ms ease;
+}
+
+.nav-link:hover,
+.nav-link-active {
+  background: rgba(252, 163, 17, 0.18);
+  color: #fff9eb;
+}
+
+.sidebar-panel h2 {
+  margin-top: 0;
+}
+
+.mini-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mini-stat:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.content-shell {
+  padding: 28px;
+}
+
+.page-stack {
+  display: grid;
+  gap: 24px;
+}
+
+.page-header,
+.panel-header,
+.button-row,
+.hero-card,
+.hero-metrics,
+.inline-fields,
+.timeline-meta,
+.result-banner {
+  display: flex;
+  gap: 16px;
+}
+
+.page-header,
+.panel-header,
+.result-banner {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hero-card {
+  justify-content: space-between;
+  align-items: stretch;
+  padding: 28px;
+  background:
+    linear-gradient(135deg, rgba(252, 163, 17, 0.95), rgba(255, 196, 61, 0.72)),
+    #fca311;
+  color: #14213d;
+}
+
+.hero-card h2 {
+  margin: 8px 0 12px;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  line-height: 1.02;
+  max-width: 14ch;
+}
+
+.hero-metrics {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.metric-card {
+  width: 220px;
+  padding: 20px;
+  background: rgba(255, 249, 235, 0.9);
+}
+
+.metric-card span,
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.metric-card strong {
+  display: block;
+  margin: 12px 0;
+  font-size: 1.8rem;
+}
+
+.metric-card p,
+.muted {
+  color: rgba(20, 33, 61, 0.72);
+}
+
+.panel-card,
+.warning-card {
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.card-grid-double {
+  grid-template-columns: 1.15fr 0.85fr;
+}
+
+.plain-list,
+.list-stack,
+.form-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.compact-stack {
+  gap: 10px;
+}
+
+.form-stack label,
+.location-card label {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(20, 33, 61, 0.16);
+  background: #fbfcfe;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.button {
+  border: 0;
+  padding: 12px 16px;
+  border-radius: 999px;
+  transition: 180ms ease;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.button-primary {
+  background: #14213d;
+  color: white;
+}
+
+.button-primary:hover {
+  background: #0c162d;
+}
+
+.button-secondary {
+  background: rgba(252, 163, 17, 0.16);
+  color: #9a6200;
+}
+
+.button-secondary:hover {
+  background: rgba(252, 163, 17, 0.24);
+}
+
+.button-ghost {
+  background: transparent;
+  color: #6f7784;
+}
+
+.button-ghost:hover {
+  background: rgba(20, 33, 61, 0.06);
+}
+
+.patient-card,
+.planner-card,
+.history-card,
+.route-stop-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 18px;
+  border-radius: 20px;
+  background: #f8fafc;
+}
+
+.picker-card {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(20, 33, 61, 0.08);
+  background: #fff;
+}
+
+.picker-card:hover {
+  border-color: rgba(252, 163, 17, 0.6);
+  transform: translateY(-1px);
+}
+
+.planner-fields {
+  align-items: end;
+}
+
+.location-card {
+  min-width: 0;
+  padding: 16px;
+  background: #f7fbff;
+}
+
+.timeline-meta {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  color: rgba(20, 33, 61, 0.75);
+}
+
+.result-stack,
+.route-summary {
+  display: grid;
+  gap: 18px;
+}
+
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    padding-bottom: 12px;
+  }
+
+  .card-grid,
+  .card-grid-double {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-card,
+  .result-banner {
+    flex-direction: column;
+  }
+
+  .hero-card h2 {
+    max-width: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .content-shell,
+  .sidebar {
+    padding: 18px;
+  }
+
+  .page-header,
+  .panel-header,
+  .patient-card,
+  .planner-card,
+  .history-card,
+  .route-stop-card,
+  .inline-fields,
+  .button-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .metric-card {
+    width: 100%;
+  }
+}
+
