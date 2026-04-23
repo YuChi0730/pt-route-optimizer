@@ -12,11 +12,15 @@
 - 路由：React Router
 - 狀態與資料：React state + `localStorage`
 - 最佳化：前端精確搜尋，支援時間窗剪枝
+- 地圖視覺化：Leaflet + React Leaflet + OpenStreetMap
+- 地理編碼：Nominatim（OpenStreetMap）+ `localStorage` 快取
 
 ## MVP Decisions
 
 - 初版先不串接 Supabase，保留未來擴充點
-- 初版先不串接 Google API，使用座標估算距離與車程
+- 初版先不串接 Supabase，部署前先以純前端驗證流程
+- 目前未串接 Google Geocoding / Distance Matrix，改用 Nominatim 做地址轉座標
+- 行車成本目前仍以座標估算距離與車程，尚未接真實路況 API
 - 個案資料需包含座標，否則無法進行最佳化
 - 已提供示範個案，方便直接驗證流程
 
@@ -24,17 +28,22 @@
 
 - 儀表板：顯示 MVP 狀態、個案數、歷史行程與最近查看行程
 - 個案管理：新增、編輯、刪除、載入示範個案
-- 行程規劃：設定日期、出發時間、起終點、優化目標、時間窗與服務時間
+- 行程規劃：設定日期、出發時間、起點/選填終點、優化目標、時間窗與服務時間
+- 常用地點：可建立、編輯、刪除起終點資料並重複使用
+- 地址地理編碼：可透過 Nominatim 查詢地址並快取結果
 - 路線最佳化：可行解搜尋、不可行解提示、總工時/行車/里程摘要
+- 路線地圖：以 Leaflet/OSM 顯示站點與折線路徑
 - 歷史行程：保存、重載草稿、Google Maps 導航導出
+- 手機版規劃頁：已縮小頂部導覽、壓縮卡片高度，並將「最晚到達」改為預設收合的進階設定
 
 ## Known Limitations
 
 - 行車時間並非真實路況，僅依座標距離與平均時速估算
-- 尚未接入 Google Geocoding，地址不會自動轉座標
+- Nominatim 有查詢頻率限制，因此實作了最小 1.1 秒節流與本機快取
+- 地址地理編碼仍可能失敗，特別是樓層、室號、舊地址或巷弄描述過細時
 - 尚未接入 Distance Matrix，無法取得真實路段時間與距離
 - 尚未接入 Supabase，資料目前只保存在瀏覽器本機
-- 尚未提供地圖視覺化、拖曳排序、登入與跨裝置同步
+- 尚未提供拖曳排序、登入與跨裝置同步
 
 ## Environment And Config
 
@@ -56,26 +65,38 @@
 ## API And Backend Status
 
 - Supabase：未串接，僅依計畫書保留 schema 與 RLS 方向
+- Nominatim Geocoding：已串接前端版本，含地址變體嘗試、節流與快取
 - Google Geocoding API：未串接
 - Google Distance Matrix API：未串接
 - Google Maps URL Scheme：已支援，可從最佳化結果直接導出導航連結
 - 後續建議優先順序：
 - 先接 Supabase patients / route_plans / route_stops
-- 再接 Geocoding 自動補座標
+- 視需求決定是否保留 Nominatim 或改切 Google Geocoding
 - 最後以 Distance Matrix 取代目前估算旅行成本
 
 ## File Landmarks
 
 - 應用主入口：`src/App.jsx`
+- 地圖元件：`src/components/RouteMap.jsx`
 - 規劃與格式化工具：`src/lib/planner.js`
 - 儲存層：`src/lib/storage.js`
+- 地理編碼工具：`src/lib/geocoding.js`
 - 路線最佳化核心：`src/lib/optimizer.js`
+- Vercel SPA fallback：`vercel.json`
 - 使用說明：`README.md`
+
+## Mobile UX Notes
+
+- 手機版頂部導覽改為緊湊 header + 可水平捲動的頁籤
+- `Step 4` 每位個案預設只顯示「最早到達」與「服務時間」
+- `最晚到達` 已改為可展開的進階限制，降低手機版表單負擔
+- 移除個案按鈕已移到卡片上方，避免佔用表單欄位區域
 
 ## Next Priorities
 
 - 串接 Supabase Auth / patients / route_plans / route_stops
-- 加入地址 geocoding 與距離矩陣 API
+- 決定正式採用的 geocoding 方案（保留 Nominatim 或改用 Google）
+- 加入距離矩陣 API，取代目前估算旅行成本
 - 顯示地圖視覺化與路徑細節
 - 增加不可行解的更細緻衝突提示
 

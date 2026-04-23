@@ -586,6 +586,7 @@ function PlannerPage({
   const [isLocationsModalOpen, setIsLocationsModalOpen] = useState(false);
   const [isObjectiveInfoOpen, setIsObjectiveInfoOpen] = useState(false);
   const [showEnd, setShowEnd] = useState(!!draftPlan.endLocation);
+  const [expandedLatestStopIds, setExpandedLatestStopIds] = useState([]);
 
   useEffect(() => {
     if (draftPlan.endLocation) setShowEnd(true);
@@ -659,6 +660,14 @@ function PlannerPage({
       ),
       optimization: null,
     }));
+  }
+
+  function toggleLatestArrival(patientId) {
+    setExpandedLatestStopIds((current) =>
+      current.includes(patientId)
+        ? current.filter((id) => id !== patientId)
+        : [...current, patientId],
+    );
   }
 
   const optimization = draftPlan.optimization;
@@ -819,12 +828,17 @@ function PlannerPage({
           <div className="list-stack">
             {draftPlan.selectedPatients.map((patient, index) => (
               <article key={patient.patientId} className="planner-card">
-                <div>
-                  <p className="eyebrow">Stop {index + 1}</p>
-                  <h4>{patient.name}</h4>
-                  <p>{patient.address}</p>
+                <div className="planner-card-header">
+                  <div className="planner-card-heading">
+                    <p className="eyebrow">Stop {index + 1}</p>
+                    <h4>{patient.name}</h4>
+                    <p>{patient.address}</p>
+                  </div>
+                  <button className="button button-ghost planner-remove-button" onClick={() => removePatient(patient.patientId)}>
+                    移除
+                  </button>
                 </div>
-                <div className="inline-fields planner-fields">
+                <div className="inline-fields planner-fields planner-fields-primary">
                   <label>
                     最早到達
                     <input
@@ -832,16 +846,6 @@ function PlannerPage({
                       value={patient.timeWindowStart}
                       onChange={(event) =>
                         updateSelectedPatient(patient.patientId, "timeWindowStart", event.target.value)
-                      }
-                    />
-                  </label>
-                  <label>
-                    最晚到達
-                    <input
-                      type="time"
-                      value={patient.timeWindowEnd}
-                      onChange={(event) =>
-                        updateSelectedPatient(patient.patientId, "timeWindowEnd", event.target.value)
                       }
                     />
                   </label>
@@ -857,10 +861,33 @@ function PlannerPage({
                       }
                     />
                   </label>
-                  <button className="button button-ghost" onClick={() => removePatient(patient.patientId)}>
-                    移除
-                  </button>
                 </div>
+                <div className="planner-advanced-toggle-row">
+                  <button
+                    type="button"
+                    className={`planner-advanced-toggle ${expandedLatestStopIds.includes(patient.patientId) ? "planner-advanced-toggle-active" : ""}`}
+                    onClick={() => toggleLatestArrival(patient.patientId)}
+                  >
+                    {expandedLatestStopIds.includes(patient.patientId) ? "隱藏最晚到達時間" : "需要限制最晚到達時間？"}
+                  </button>
+                  {!expandedLatestStopIds.includes(patient.patientId) && patient.timeWindowEnd !== "18:00" ? (
+                    <span className="planner-advanced-summary">目前最晚 {patient.timeWindowEnd}</span>
+                  ) : null}
+                </div>
+                {expandedLatestStopIds.includes(patient.patientId) ? (
+                  <div className="inline-fields planner-fields planner-fields-secondary">
+                    <label>
+                      最晚到達
+                      <input
+                        type="time"
+                        value={patient.timeWindowEnd}
+                        onChange={(event) =>
+                          updateSelectedPatient(patient.patientId, "timeWindowEnd", event.target.value)
+                        }
+                      />
+                  </label>
+                </div>
+                ) : null}
               </article>
             ))}
           </div>
@@ -1107,7 +1134,6 @@ function VisitList({ route, summary, onToggleCompleted, onSavePlan }) {
     </div>
   );
 }
-
 function SavedLocationPicker({ label, value, savedLocations, onChange, onManage, allowNone }) {
   const selectedId = value?.id ?? "";
 
