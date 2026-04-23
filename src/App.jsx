@@ -306,14 +306,14 @@ function DashboardPage({ plans, patients, activePlan }) {
 function PatientsPage({ patients, onChange }) {
   const [form, setForm] = useState(createEmptyPatient());
   const [geocodeState, setGeocodeState] = useState({ status: "idle", message: "" });
+  const [lastGeocoded, setLastGeocoded] = useState("");
 
-  async function handleGeocode() {
-    if (!form.address.trim()) {
-      setGeocodeState({ status: "error", message: "請先輸入地址。" });
-      return;
-    }
-    setGeocodeState({ status: "loading", message: "查詢中…" });
-    const result = await geocodeAddress(form.address);
+  async function resolveAddress(address) {
+    const trimmed = address.trim();
+    if (!trimmed || trimmed === lastGeocoded) return;
+    setLastGeocoded(trimmed);
+    setGeocodeState({ status: "loading", message: "定位中…" });
+    const result = await geocodeAddress(trimmed);
     if (!result.ok) {
       setGeocodeState({ status: "error", message: result.reason });
       return;
@@ -355,6 +355,8 @@ function PatientsPage({ patients, onChange }) {
 
   function handleEdit(patient) {
     setForm(patient);
+    setLastGeocoded(patient.address?.trim() || "");
+    setGeocodeState({ status: "idle", message: "" });
   }
 
   function handleDelete(patientId) {
@@ -398,44 +400,15 @@ function PatientsPage({ patients, onChange }) {
             <input
               value={form.address}
               onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
+              onBlur={(event) => resolveAddress(event.target.value)}
               placeholder="台北市大安區..."
             />
           </label>
-          <div className="button-row">
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={handleGeocode}
-              disabled={geocodeState.status === "loading"}
-            >
-              {geocodeState.status === "loading" ? "查詢中…" : "查詢座標"}
-            </button>
-            {geocodeState.message ? (
-              <span className={`muted geocode-hint geocode-${geocodeState.status}`}>
-                {geocodeState.message}
-              </span>
-            ) : null}
-          </div>
-          <div className="inline-fields">
-            <label>
-              緯度
-              <input
-                type="number"
-                step="0.000001"
-                value={form.latitude}
-                onChange={(event) => setForm((current) => ({ ...current, latitude: event.target.value }))}
-              />
-            </label>
-            <label>
-              經度
-              <input
-                type="number"
-                step="0.000001"
-                value={form.longitude}
-                onChange={(event) => setForm((current) => ({ ...current, longitude: event.target.value }))}
-              />
-            </label>
-          </div>
+          {geocodeState.message ? (
+            <p className={`muted geocode-hint geocode-${geocodeState.status}`}>
+              {geocodeState.message}
+            </p>
+          ) : null}
           <label>
             預設服務時間（分鐘）
             <input
@@ -845,19 +818,19 @@ function MetricCard({ label, value, hint }) {
 
 function LocationEditor({ title, location, onChange }) {
   const [state, setState] = useState({ status: "idle", message: "" });
+  const [lastGeocoded, setLastGeocoded] = useState(location.address?.trim() || "");
 
-  async function handleGeocode() {
-    if (!location.address?.trim()) {
-      setState({ status: "error", message: "請先輸入地址。" });
-      return;
-    }
-    setState({ status: "loading", message: "查詢中…" });
-    const result = await geocodeAddress(location.address);
+  async function resolveAddress(address) {
+    const trimmed = address.trim();
+    if (!trimmed || trimmed === lastGeocoded) return;
+    setLastGeocoded(trimmed);
+    setState({ status: "loading", message: "定位中…" });
+    const result = await geocodeAddress(trimmed);
     if (!result.ok) {
       setState({ status: "error", message: result.reason });
       return;
     }
-    onChange({ ...location, latitude: result.latitude, longitude: result.longitude });
+    onChange({ ...location, address: trimmed, latitude: result.latitude, longitude: result.longitude });
     setState({
       status: "success",
       message: `已定位${result.fromCache ? "（快取）" : ""}`,
@@ -880,42 +853,13 @@ function LocationEditor({ title, location, onChange }) {
         <input
           value={location.address}
           onChange={(event) => onChange({ ...location, address: event.target.value })}
+          onBlur={(event) => resolveAddress(event.target.value)}
           placeholder="台北市..."
         />
       </label>
-      <div className="button-row">
-        <button
-          className="button button-secondary"
-          type="button"
-          onClick={handleGeocode}
-          disabled={state.status === "loading"}
-        >
-          {state.status === "loading" ? "查詢中…" : "查詢座標"}
-        </button>
-        {state.message ? (
-          <span className={`muted geocode-hint geocode-${state.status}`}>{state.message}</span>
-        ) : null}
-      </div>
-      <div className="inline-fields">
-        <label>
-          緯度
-          <input
-            type="number"
-            step="0.000001"
-            value={location.latitude}
-            onChange={(event) => onChange({ ...location, latitude: Number(event.target.value) || 0 })}
-          />
-        </label>
-        <label>
-          經度
-          <input
-            type="number"
-            step="0.000001"
-            value={location.longitude}
-            onChange={(event) => onChange({ ...location, longitude: Number(event.target.value) || 0 })}
-          />
-        </label>
-      </div>
+      {state.message ? (
+        <p className={`muted geocode-hint geocode-${state.status}`}>{state.message}</p>
+      ) : null}
     </fieldset>
   );
 }
