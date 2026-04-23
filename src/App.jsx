@@ -1,4 +1,4 @@
-import { NavLink, Route, Routes } from "react-router-dom";
+import { NavLink, Route, Routes, useNavigate } from "react-router-dom";
 import RouteMap from "./components/RouteMap";
 import {
   calculateRouteSummary,
@@ -142,10 +142,10 @@ function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-card">
-          <p className="eyebrow">PT Route Optimizer</p>
+          <p className="eyebrow">PT Route Navigator</p>
           <h1>居家物理治療導航</h1>
           <p className="muted">
-            初版 MVP 先以本機資料與前端最佳化跑通核心流程，後續可再接 Supabase 與地圖 API。
+            為居家治療師打造的每日路線管理工具，讓家訪安排更有效率。
           </p>
         </div>
 
@@ -225,25 +225,56 @@ function App() {
 }
 
 function DashboardPage({ plans, patients, activePlan }) {
-  const todayPlan = plans.find((plan) => plan.planDate === new Date().toISOString().slice(0, 10));
+  const navigate = useNavigate();
+  const today = new Date();
+  const todayIso = today.toISOString().slice(0, 10);
+  const todayPlan = plans.find((plan) => plan.planDate === todayIso);
+  const upcomingPlan = plans.find((plan) => plan.planDate >= todayIso);
+  const featuredPlan = todayPlan ?? upcomingPlan ?? activePlan ?? plans[0] ?? null;
+  const recentPlans = plans.slice(0, 4);
+
+  const greeting = (() => {
+    const hour = today.getHours();
+    if (hour < 5) return "夜深了";
+    if (hour < 12) return "早安";
+    if (hour < 18) return "午安";
+    return "晚安";
+  })();
+
+  const dateLabel = today.toLocaleDateString("zh-TW", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  });
 
   return (
     <div className="page-stack">
       <section className="hero-card">
         <div>
-          <p className="eyebrow">MVP Snapshot</p>
-          <h2>把每日家訪排程先變成可操作的工具</h2>
+          <p className="eyebrow">{dateLabel}</p>
+          <h2>{greeting}，今天準備出門看 {todayPlan?.selectedPatients.length ?? 0} 位個案</h2>
           <p className="muted">
-            這個版本先支援個案管理、時間窗輸入、前端路線最佳化、Google Maps 導航匯出與歷史紀錄。
+            {todayPlan
+              ? `行程已排定，從 ${todayPlan.startTime} 出發，預計工時 ${formatDuration(todayPlan.summary.totalWorkMinutes)}。`
+              : "今天尚未建立行程，前往行程規劃即可一鍵安排今日最佳路線。"}
           </p>
+          <div className="button-row hero-actions">
+            <button className="button button-primary" onClick={() => navigate("/planner")}>
+              {todayPlan ? "檢視今日行程" : "規劃今日行程"}
+            </button>
+            <button className="button button-secondary" onClick={() => navigate("/patients")}>
+              管理個案
+            </button>
+          </div>
         </div>
         <div className="hero-metrics">
-          <MetricCard label="個案資料" value={`${patients.length} 位`} hint="本機儲存，可先建立假資料驗證流程" />
-          <MetricCard label="歷史行程" value={`${plans.length} 筆`} hint="每次最佳化後可直接保存結果" />
+          <MetricCard label="個案總數" value={`${patients.length}`} hint="名冊內可派案的個案" />
+          <MetricCard label="已存行程" value={`${plans.length}`} hint="累積規劃過的家訪行程" />
           <MetricCard
             label="今日行程"
-            value={todayPlan ? "已建立" : "尚未建立"}
-            hint={todayPlan ? formatDateLabel(todayPlan.planDate) : "可到行程規劃頁建立"}
+            value={todayPlan ? formatDuration(todayPlan.summary.totalWorkMinutes) : "未排定"}
+            hint={todayPlan ? `${todayPlan.selectedPatients.length} 站　${todayPlan.summary.totalDistanceKm.toFixed(1)} km` : "點擊上方按鈕開始安排"}
           />
         </div>
       </section>
@@ -251,53 +282,90 @@ function DashboardPage({ plans, patients, activePlan }) {
       <section className="card-grid">
         <section className="panel-card">
           <div className="panel-header">
-            <h3>本版已完成</h3>
+            <h3>{todayPlan ? "今日行程概覽" : upcomingPlan ? "下一筆行程" : "重點行程"}</h3>
+            {featuredPlan ? (
+              <a className="button button-ghost" href={featuredPlan.googleMapsUrl} target="_blank" rel="noreferrer">
+                Google Maps 導航
+              </a>
+            ) : null}
           </div>
-          <ul className="plain-list">
-            <li>個案 CRUD 與本機持久化</li>
-            <li>每日行程規劃表單</li>
-            <li>時間窗與服務時間設定</li>
-            <li>精確最佳化與不可行解提示</li>
-            <li>Google Maps 多點導航匯出</li>
-          </ul>
+          {featuredPlan ? (
+            <div className="route-summary">
+              <p>
+                <strong>{formatDateLabel(featuredPlan.planDate)}</strong>
+                {" · 出發 "}
+                {featuredPlan.startTime}
+                {" · "}
+                {featuredPlan.selectedPatients.length} 位個案
+              </p>
+              <div className="summary-stats">
+                <div>
+                  <span className="muted">總工時</span>
+                  <strong>{formatDuration(featuredPlan.summary.totalWorkMinutes)}</strong>
+                </div>
+                <div>
+                  <span className="muted">行車時間</span>
+                  <strong>{formatDuration(featuredPlan.summary.totalTravelMinutes)}</strong>
+                </div>
+                <div>
+                  <span className="muted">總里程</span>
+                  <strong>{featuredPlan.summary.totalDistanceKm.toFixed(1)} km</strong>
+                </div>
+              </div>
+              <ol className="stop-preview">
+                {featuredPlan.route
+                  .filter((_, idx) => idx !== 0 && idx !== featuredPlan.route.length - 1)
+                  .slice(0, 5)
+                  .map((stop, idx) => (
+                    <li key={stop.id}>
+                      <span className="stop-index">{idx + 1}</span>
+                      <div>
+                        <strong>{stop.name}</strong>
+                        <span className="muted">到達 {formatTime(stop.arrivalMinutes)}</span>
+                      </div>
+                    </li>
+                  ))}
+              </ol>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p className="muted">尚未建立任何行程。建立第一筆行程後，這裡會顯示路線摘要與快速導航。</p>
+              <button className="button button-primary" onClick={() => navigate("/planner")}>
+                立即規劃
+              </button>
+            </div>
+          )}
         </section>
 
         <section className="panel-card">
           <div className="panel-header">
-            <h3>下一步接點</h3>
+            <h3>近期行程</h3>
+            {plans.length > recentPlans.length ? (
+              <button className="button button-ghost" onClick={() => navigate("/history")}>
+                查看全部
+              </button>
+            ) : null}
           </div>
-          <ul className="plain-list">
-            <li>Supabase Auth、Schema、RLS</li>
-            <li>Google Geocoding / Distance Matrix 串接</li>
-            <li>地圖視覺化與路段明細</li>
-            <li>拖曳重排與行程複製</li>
-          </ul>
+          {recentPlans.length ? (
+            <ul className="plain-list recent-list">
+              {recentPlans.map((plan) => (
+                <li key={plan.id} className="recent-item">
+                  <div>
+                    <strong>{formatDateLabel(plan.planDate)}</strong>
+                    <span className="muted">
+                      {plan.selectedPatients.length} 位 · {formatDuration(plan.summary.totalWorkMinutes)} · {plan.summary.totalDistanceKm.toFixed(1)} km
+                    </span>
+                  </div>
+                  <a className="button button-ghost" href={plan.googleMapsUrl} target="_blank" rel="noreferrer">
+                    導航
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted">完成第一筆行程規劃後，這裡會列出近期的家訪安排。</p>
+          )}
         </section>
-      </section>
-
-      <section className="panel-card">
-        <div className="panel-header">
-          <h3>最近一次查看的行程</h3>
-        </div>
-        {activePlan ? (
-          <div className="route-summary">
-            <p>
-              <strong>{formatDateLabel(activePlan.planDate)}</strong>
-              {" · "}
-              {activePlan.selectedPatients.length} 位個案
-            </p>
-            <p className="muted">
-              預估行車 {formatDuration(activePlan.summary.totalTravelMinutes)}，
-              服務 {formatDuration(activePlan.summary.totalServiceMinutes)}，
-              總里程 {activePlan.summary.totalDistanceKm.toFixed(1)} km
-            </p>
-            <a className="button button-primary" href={activePlan.googleMapsUrl} target="_blank" rel="noreferrer">
-              開啟 Google Maps 導航
-            </a>
-          </div>
-        ) : (
-          <p className="muted">尚未選取任何已保存行程，可以先到行程規劃頁計算一筆示範資料。</p>
-        )}
       </section>
     </div>
   );

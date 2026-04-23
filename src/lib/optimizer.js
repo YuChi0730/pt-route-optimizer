@@ -204,30 +204,36 @@ export function calculateRouteSummary(route, plan) {
   };
 }
 
+function stopQuery(stop) {
+  const address = (stop.address || "").trim();
+  if (address) return address;
+  if (isValidCoordinate(stop.latitude, stop.longitude)) {
+    return `${stop.latitude},${stop.longitude}`;
+  }
+  return null;
+}
+
 export function createGoogleMapsDirectionsUrl(route) {
   const start = route[0];
   const end = route.at(-1);
-
-  if (!isValidCoordinate(start.latitude, start.longitude)) return null;
-  if (!isValidCoordinate(end.latitude, end.longitude)) return null;
-
   const middle = route.slice(1, -1);
-  if (middle.some((stop) => !isValidCoordinate(stop.latitude, stop.longitude))) {
-    return null;
-  }
+
+  const originQuery = stopQuery(start);
+  const destinationQuery = stopQuery(end);
+  if (!originQuery || !destinationQuery) return null;
+
+  const middleQueries = middle.map(stopQuery);
+  if (middleQueries.some((value) => !value)) return null;
 
   const params = [
     "api=1",
-    `origin=${start.latitude},${start.longitude}`,
-    `destination=${end.latitude},${end.longitude}`,
+    `origin=${encodeURIComponent(originQuery)}`,
+    `destination=${encodeURIComponent(destinationQuery)}`,
     "travelmode=driving",
   ];
 
-  if (middle.length) {
-    const waypoints = middle
-      .map((stop) => `${stop.latitude},${stop.longitude}`)
-      .join("|");
-    params.push(`waypoints=${encodeURIComponent(waypoints)}`);
+  if (middleQueries.length) {
+    params.push(`waypoints=${middleQueries.map(encodeURIComponent).join("%7C")}`);
   }
 
   return `https://www.google.com/maps/dir/?${params.join("&")}`;
