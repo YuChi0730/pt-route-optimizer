@@ -392,8 +392,8 @@ function PatientsPage({ patients, onChange }) {
       longitude: result.longitude,
     }));
     setGeocodeState({
-      status: "success",
-      message: `已定位：${result.displayName}${result.fromCache ? "（快取）" : ""}`,
+      status: result.approximate ? "warning" : "success",
+      message: `${result.approximate ? "近似定位" : "已定位"}：${result.displayName}${result.fromCache ? "（快取）" : ""}`,
     });
   }
 
@@ -900,8 +900,8 @@ function LocationEditor({ title, location, onChange }) {
     }
     onChange({ ...location, address: trimmed, latitude: result.latitude, longitude: result.longitude });
     setState({
-      status: "success",
-      message: `已定位${result.fromCache ? "（快取）" : ""}`,
+      status: result.approximate ? "warning" : "success",
+      message: `${result.approximate ? "近似定位" : "已定位"}${result.fromCache ? "（快取）" : ""}`,
     });
   }
 

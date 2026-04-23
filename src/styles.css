@@ -660,3 +660,6 @@ textarea {
 .geocode-hint.geocode-loading {
   color: #4a5568;
 }
+.geocode-hint.geocode-warning {
+  color: #b7791f;
+}
