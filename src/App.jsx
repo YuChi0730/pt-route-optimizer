@@ -22,7 +22,7 @@ import {
   saveRoutePlans,
 } from "./lib/storage";
 import { geocodeAddress } from "./lib/geocoding";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const navigationItems = [
   { to: "/", label: "儀表板" },
@@ -397,6 +397,13 @@ function PatientsPage({ patients, onChange }) {
     });
   }
 
+  useEffect(() => {
+    const trimmed = form.address.trim();
+    if (!trimmed || trimmed === lastGeocoded) return;
+    const timer = setTimeout(() => resolveAddress(trimmed), 700);
+    return () => clearTimeout(timer);
+  }, [form.address]);
+
   function handleSubmit(event) {
     event.preventDefault();
     if (!form.name.trim() || !form.address.trim()) {
@@ -468,7 +475,6 @@ function PatientsPage({ patients, onChange }) {
             <input
               value={form.address}
               onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
-              onBlur={(event) => resolveAddress(event.target.value)}
               placeholder="台北市大安區..."
             />
           </label>
@@ -548,6 +554,20 @@ function PatientsPage({ patients, onChange }) {
 function PlannerPage({ draftPlan, patients, onChangeDraft, onOptimize, onSavePlan }) {
   const selectedPatientIds = new Set(draftPlan.selectedPatients.map((patient) => patient.patientId));
   const availablePatients = patients.filter((patient) => !selectedPatientIds.has(patient.id));
+  const resultRef = useRef(null);
+  const previousOptimizationRef = useRef(draftPlan.optimization);
+
+  useEffect(() => {
+    if (
+      draftPlan.optimization &&
+      draftPlan.optimization !== previousOptimizationRef.current
+    ) {
+      requestAnimationFrame(() => {
+        resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+    previousOptimizationRef.current = draftPlan.optimization;
+  }, [draftPlan.optimization]);
 
   function addPatient(patient) {
     onChangeDraft((current) => ({
@@ -596,9 +616,6 @@ function PlannerPage({ draftPlan, patients, onChangeDraft, onOptimize, onSavePla
           <p className="eyebrow">Planner</p>
           <h2>行程規劃</h2>
         </div>
-        <button className="button button-primary" onClick={onOptimize} disabled={!draftPlan.selectedPatients.length}>
-          計算最佳路徑
-        </button>
       </section>
 
       <section className="card-grid card-grid-double">
@@ -748,9 +765,24 @@ function PlannerPage({ draftPlan, patients, onChangeDraft, onOptimize, onSavePla
         ) : (
           <p className="muted">請先加入至少一位個案再進行最佳化。</p>
         )}
+
+        <div className="planner-action-bar">
+          <p className="muted planner-action-hint">
+            {draftPlan.selectedPatients.length
+              ? `已選 ${draftPlan.selectedPatients.length} 位個案，可開始計算最佳路徑。`
+              : "請先到 Step 3 加入今日個案。"}
+          </p>
+          <button
+            className="button button-primary"
+            onClick={onOptimize}
+            disabled={!draftPlan.selectedPatients.length}
+          >
+            計算最佳路徑
+          </button>
+        </div>
       </section>
 
-      <section className="panel-card">
+      <section className="panel-card" ref={resultRef}>
         <div className="panel-header">
           <h3>Step 5-6：最佳化結果</h3>
         </div>
@@ -905,6 +937,13 @@ function LocationEditor({ title, location, onChange }) {
     });
   }
 
+  useEffect(() => {
+    const trimmed = location.address?.trim() || "";
+    if (!trimmed || trimmed === lastGeocoded) return;
+    const timer = setTimeout(() => resolveAddress(trimmed), 700);
+    return () => clearTimeout(timer);
+  }, [location.address]);
+
   return (
     <fieldset className="location-card">
       <legend>{title}</legend>
@@ -921,7 +960,6 @@ function LocationEditor({ title, location, onChange }) {
         <input
           value={location.address}
           onChange={(event) => onChange({ ...location, address: event.target.value })}
-          onBlur={(event) => resolveAddress(event.target.value)}
           placeholder="台北市..."
         />
       </label>

@@ -520,6 +520,17 @@ textarea {
   .button {
     padding: 10px 14px;
   }
+
+  .planner-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .planner-action-bar .button-primary {
+    width: 100%;
+    padding: 14px 16px;
+  }
 }
 
 /* ── Route map markers ── */
@@ -553,6 +564,28 @@ textarea {
   font-family: inherit;
 }
 
+
+/* ── Planner action bar ── */
+.planner-action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(20, 33, 61, 0.08);
+}
+
+.planner-action-hint {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.planner-action-bar .button-primary {
+  padding: 14px 28px;
+  font-weight: 600;
+  font-size: 1rem;
+}
 
 /* ── Dashboard ── */
 .hero-actions {
