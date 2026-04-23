@@ -2,6 +2,7 @@ import { defaultPatients } from "./planner";
 
 const PATIENTS_KEY = "pt-route-optimizer:patients";
 const ROUTE_PLANS_KEY = "pt-route-optimizer:route-plans";
+const SAVED_LOCATIONS_KEY = "pt-route-optimizer:saved-locations";
 
 function readJson(key, fallback) {
   try {
@@ -27,4 +28,12 @@ export function loadRoutePlans() {
 
 export function saveRoutePlans(plans) {
   window.localStorage.setItem(ROUTE_PLANS_KEY, JSON.stringify(plans));
+}
+
+export function loadSavedLocations() {
+  return readJson(SAVED_LOCATIONS_KEY, []);
+}
+
+export function saveSavedLocations(locations) {
+  window.localStorage.setItem(SAVED_LOCATIONS_KEY, JSON.stringify(locations));
 }

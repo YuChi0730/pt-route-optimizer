@@ -31,13 +31,13 @@ function calculateTravelMinutes(from, to) {
 }
 
 function buildStops(plan) {
-  return [
+  const stops = [
     {
       id: "start",
-      name: plan.startLocation.name || "起點",
-      address: plan.startLocation.address,
-      latitude: Number(plan.startLocation.latitude),
-      longitude: Number(plan.startLocation.longitude),
+      name: plan.startLocation?.name || "起點",
+      address: plan.startLocation?.address ?? "",
+      latitude: Number(plan.startLocation?.latitude),
+      longitude: Number(plan.startLocation?.longitude),
       serviceDuration: 0,
       timeWindowStart: plan.startTime,
       timeWindowEnd: "23:59",
@@ -54,7 +54,10 @@ function buildStops(plan) {
       timeWindowEnd: patient.timeWindowEnd,
       kind: "patient",
     })),
-    {
+  ];
+
+  if (plan.endLocation) {
+    stops.push({
       id: "end",
       name: plan.endLocation.name || "終點",
       address: plan.endLocation.address,
@@ -64,11 +67,17 @@ function buildStops(plan) {
       timeWindowStart: plan.startTime,
       timeWindowEnd: "23:59",
       kind: "end",
-    },
-  ];
+    });
+  }
+
+  return stops;
 }
 
 export function optimizeRoute(plan) {
+  if (!plan.startLocation) {
+    return { route: null, reason: "請先選擇起點，可使用常用地點或新增一個。" };
+  }
+
   const stops = buildStops(plan);
   const patients = stops.filter((stop) => stop.kind === "patient");
 
@@ -82,17 +91,18 @@ export function optimizeRoute(plan) {
   if (missingPatient) {
     return {
       route: null,
-      reason: `個案「${missingPatient.name}」缺少有效座標，請到個案管理點「查詢座標」或手動輸入。`,
+      reason: `個案「${missingPatient.name}」缺少有效座標，請到個案管理重新輸入地址。`,
     };
   }
 
   const start = stops[0];
-  const end = stops[stops.length - 1];
+  const hasEnd = !!plan.endLocation;
+  const end = hasEnd ? stops[stops.length - 1] : null;
   if (!isValidCoordinate(start.latitude, start.longitude)) {
-    return { route: null, reason: "起點座標無效，請輸入地址後點「查詢座標」。" };
+    return { route: null, reason: "起點座標無效，請重新選擇或補上地址。" };
   }
-  if (!isValidCoordinate(end.latitude, end.longitude)) {
-    return { route: null, reason: "終點座標無效，請輸入地址後點「查詢座標」。" };
+  if (hasEnd && !isValidCoordinate(end.latitude, end.longitude)) {
+    return { route: null, reason: "終點座標無效，請重新選擇或補上地址。" };
   }
 
   const startTimeMinutes = parseTimeToMinutes(plan.startTime);
@@ -108,23 +118,27 @@ export function optimizeRoute(plan) {
     }
 
     if (!remainingStops.length) {
-      const finalLeg = calculateTravelMinutes(currentStop, end);
-      const arrivalMinutes = currentTime + finalLeg.travelMinutes;
-      const completedRoute = [
-        ...routeSoFar,
-        {
-          ...end,
-          arrivalMinutes,
-          departureMinutes: arrivalMinutes,
-          travelMinutes: finalLeg.travelMinutes,
-          distanceKm: finalLeg.distanceKm,
-        },
-      ];
+      let finalRoute = routeSoFar;
+      let finalCost = pathCost;
+      if (hasEnd) {
+        const finalLeg = calculateTravelMinutes(currentStop, end);
+        const arrivalMinutes = currentTime + finalLeg.travelMinutes;
+        finalRoute = [
+          ...routeSoFar,
+          {
+            ...end,
+            arrivalMinutes,
+            departureMinutes: arrivalMinutes,
+            travelMinutes: finalLeg.travelMinutes,
+            distanceKm: finalLeg.distanceKm,
+          },
+        ];
+        finalCost = pathCost + finalLeg[objectiveWeight];
+      }
 
-      const finalCost = pathCost + finalLeg[objectiveWeight];
       if (finalCost < bestCost) {
         bestCost = finalCost;
-        bestRoute = completedRoute;
+        bestRoute = finalRoute;
       }
       return;
     }
@@ -202,6 +216,12 @@ export function calculateRouteSummary(route, plan) {
     totalDistanceKm,
     totalWorkMinutes,
   };
+}
+
+export function createSingleDestinationUrl(stop) {
+  const query = stopQuery(stop);
+  if (!query) return null;
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}&travelmode=driving`;
 }
 
 function stopQuery(stop) {

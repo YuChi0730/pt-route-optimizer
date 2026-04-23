@@ -49,26 +49,15 @@ export function createEmptyPatient() {
   };
 }
 
-export function buildDraftPlan(patients = []) {
+export function buildDraftPlan() {
   const today = new Date().toISOString().slice(0, 10);
-  const firstPatient = patients[0];
 
   return {
     planDate: today,
     startTime: "08:00",
     objective: "time",
-    startLocation: {
-      name: "住家",
-      address: "台北市中正區忠孝東路一段 1 號",
-      latitude: firstPatient?.latitude ?? 25.041789,
-      longitude: firstPatient?.longitude ?? 121.519169,
-    },
-    endLocation: {
-      name: "回診所",
-      address: "台北市中正區忠孝東路一段 1 號",
-      latitude: firstPatient?.latitude ?? 25.041789,
-      longitude: firstPatient?.longitude ?? 121.519169,
-    },
+    startLocation: null,
+    endLocation: null,
     selectedPatients: [],
     optimization: null,
   };
@@ -79,8 +68,8 @@ export function clonePlanForDraft(plan) {
     planDate: plan.planDate,
     startTime: plan.startTime,
     objective: plan.objective,
-    startLocation: plan.startLocation,
-    endLocation: plan.endLocation,
+    startLocation: plan.startLocation ?? null,
+    endLocation: plan.endLocation ?? null,
     selectedPatients: plan.selectedPatients,
     optimization: {
       route: plan.route,

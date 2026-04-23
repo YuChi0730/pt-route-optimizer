@@ -3,6 +3,7 @@ import RouteMap from "./components/RouteMap";
 import {
   calculateRouteSummary,
   createGoogleMapsDirectionsUrl,
+  createSingleDestinationUrl,
   optimizeRoute,
 } from "./lib/optimizer";
 import {
@@ -18,8 +19,10 @@ import {
 import {
   loadPatients,
   loadRoutePlans,
+  loadSavedLocations,
   savePatients,
   saveRoutePlans,
+  saveSavedLocations,
 } from "./lib/storage";
 import { geocodeAddress } from "./lib/geocoding";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -34,8 +37,26 @@ const navigationItems = [
 function App() {
   const [patients, setPatients] = useState(loadPatients);
   const [plans, setPlans] = useState(loadRoutePlans);
-  const [draftPlan, setDraftPlan] = useState(() => buildDraftPlan(loadPatients()));
+  const [savedLocations, setSavedLocations] = useState(loadSavedLocations);
+  const [draftPlan, setDraftPlan] = useState(buildDraftPlan);
   const [activePlanId, setActivePlanId] = useState(null);
+
+  function updateSavedLocations(nextLocations) {
+    setSavedLocations(nextLocations);
+    saveSavedLocations(nextLocations);
+    setDraftPlan((current) => {
+      const next = { ...current };
+      if (current.startLocation?.id) {
+        const matched = nextLocations.find((item) => item.id === current.startLocation.id);
+        next.startLocation = matched ?? null;
+      }
+      if (current.endLocation?.id) {
+        const matched = nextLocations.find((item) => item.id === current.endLocation.id);
+        next.endLocation = matched ?? null;
+      }
+      return next;
+    });
+  }
 
   const activePlan = useMemo(
     () => plans.find((plan) => plan.id === activePlanId) ?? null,
@@ -202,6 +223,8 @@ function App() {
               <PlannerPage
                 draftPlan={draftPlan}
                 patients={patients}
+                savedLocations={savedLocations}
+                onChangeSavedLocations={updateSavedLocations}
                 onChangeDraft={updateDraft}
                 onOptimize={runOptimization}
                 onSavePlan={saveDraftAsPlan}
@@ -551,7 +574,23 @@ function PatientsPage({ patients, onChange }) {
   );
 }
 
-function PlannerPage({ draftPlan, patients, onChangeDraft, onOptimize, onSavePlan }) {
+function PlannerPage({
+  draftPlan,
+  patients,
+  savedLocations,
+  onChangeSavedLocations,
+  onChangeDraft,
+  onOptimize,
+  onSavePlan,
+}) {
+  const [isLocationsModalOpen, setIsLocationsModalOpen] = useState(false);
+  const [isObjectiveInfoOpen, setIsObjectiveInfoOpen] = useState(false);
+  const [showEnd, setShowEnd] = useState(!!draftPlan.endLocation);
+
+  useEffect(() => {
+    if (draftPlan.endLocation) setShowEnd(true);
+  }, [draftPlan.endLocation]);
+
   const selectedPatientIds = new Set(draftPlan.selectedPatients.map((patient) => patient.patientId));
   const availablePatients = patients.filter((patient) => !selectedPatientIds.has(patient.id));
   const resultRef = useRef(null);
@@ -595,6 +634,21 @@ function PlannerPage({ draftPlan, patients, onChangeDraft, onOptimize, onSavePla
       selectedPatients: current.selectedPatients.filter((patient) => patient.patientId !== patientId),
       optimization: null,
     }));
+  }
+
+  function toggleStopCompleted(stopId) {
+    onChangeDraft((current) => {
+      if (!current.optimization?.route) return current;
+      return {
+        ...current,
+        optimization: {
+          ...current.optimization,
+          route: current.optimization.route.map((stop) =>
+            stop.id === stopId ? { ...stop, completed: !stop.completed } : stop,
+          ),
+        },
+      };
+    });
   }
 
   function updateSelectedPatient(patientId, field, value) {
@@ -647,43 +701,91 @@ function PlannerPage({ draftPlan, patients, onChangeDraft, onOptimize, onSavePla
             </label>
           </div>
 
-          <label>
-            優化目標
-            <select
-              value={draftPlan.objective}
-              onChange={(event) =>
-                onChangeDraft((current) => ({ ...current, objective: event.target.value, optimization: null }))
-              }
-            >
-              <option value="time">最短時間</option>
-              <option value="distance">最短距離</option>
-            </select>
-          </label>
-
-          <div className="inline-fields">
-            <LocationEditor
-              title="起點"
-              location={draftPlan.startLocation}
-              onChange={(nextLocation) =>
-                onChangeDraft((current) => ({
-                  ...current,
-                  startLocation: nextLocation,
-                  optimization: null,
-                }))
-              }
-            />
-            <LocationEditor
-              title="終點"
-              location={draftPlan.endLocation}
-              onChange={(nextLocation) =>
-                onChangeDraft((current) => ({
-                  ...current,
-                  endLocation: nextLocation,
-                  optimization: null,
-                }))
-              }
-            />
+          <div className="field-group">
+            <div className="field-label-row">
+              <span>優化目標</span>
+              <button
+                type="button"
+                className="info-button"
+                onClick={() => setIsObjectiveInfoOpen(true)}
+                aria-label="優化目標說明"
+              >
+                ⓘ
+              </button>
+            </div>
+            <div className="segmented" role="group">
+              <button
+                type="button"
+                className={`segment ${draftPlan.objective === "time" ? "segment-active" : ""}`}
+                onClick={() =>
+                  onChangeDraft((current) => ({ ...current, objective: "time", optimization: null }))
+                }
+              >
+                ⏱ 省時間
+              </button>
+              <button
+                type="button"
+                className={`segment ${draftPlan.objective === "distance" ? "segment-active" : ""}`}
+                onClick={() =>
+                  onChangeDraft((current) => ({ ...current, objective: "distance", optimization: null }))
+                }
+              >
+                ⛽ 省油費
+              </button>
+            </div>
           </div>
+
+          <SavedLocationPicker
+            label="起點"
+            value={draftPlan.startLocation}
+            savedLocations={savedLocations}
+            onChange={(nextLocation) =>
+              onChangeDraft((current) => ({
+                ...current,
+                startLocation: nextLocation,
+                optimization: null,
+              }))
+            }
+            onManage={() => setIsLocationsModalOpen(true)}
+            allowNone={false}
+          />
+
+          {showEnd ? (
+            <div className="end-location-block">
+              <SavedLocationPicker
+                label="終點（選填）"
+                value={draftPlan.endLocation}
+                savedLocations={savedLocations}
+                onChange={(nextLocation) =>
+                  onChangeDraft((current) => ({
+                    ...current,
+                    endLocation: nextLocation,
+                    optimization: null,
+                  }))
+                }
+                onManage={() => setIsLocationsModalOpen(true)}
+                allowNone={true}
+              />
+              <button
+                type="button"
+                className="button button-ghost end-toggle"
+                onClick={() => {
+                  setShowEnd(false);
+                  onChangeDraft((current) => ({ ...current, endLocation: null, optimization: null }));
+                }}
+              >
+                收起終點
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="button button-ghost end-toggle"
+              onClick={() => setShowEnd(true)}
+            >
+              + 需要指定終點？
+            </button>
+          )}
         </section>
 
         <section className="panel-card">
@@ -784,56 +886,16 @@ function PlannerPage({ draftPlan, patients, onChangeDraft, onOptimize, onSavePla
 
       <section className="panel-card" ref={resultRef}>
         <div className="panel-header">
-          <h3>Step 5-6：最佳化結果</h3>
+          <h3>Step 5-6：今日拜訪清單</h3>
         </div>
         {optimization ? (
           optimization.route ? (
-            <div className="result-stack">
-              <div className="result-banner">
-                <div>
-                  <h4>已找到可行解</h4>
-                  <p className="muted">
-                    預估總工時 {formatDuration(optimization.summary.totalWorkMinutes)}，
-                    行車 {formatDuration(optimization.summary.totalTravelMinutes)}，
-                    服務 {formatDuration(optimization.summary.totalServiceMinutes)}，
-                    距離 {optimization.summary.totalDistanceKm.toFixed(1)} km
-                  </p>
-                </div>
-                <div className="button-row">
-                  <a
-                    className="button button-primary"
-                    href={createGoogleMapsDirectionsUrl(optimization.route)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    導出 Google Maps
-                  </a>
-                  <button className="button button-secondary" onClick={onSavePlan}>
-                    保存到歷史
-                  </button>
-                </div>
-              </div>
-
-              <RouteMap route={optimization.route} />
-
-              <div className="list-stack">
-                {optimization.route.map((stop, index) => (
-                  <article key={stop.id} className="route-stop-card">
-                    <div>
-                      <p className="eyebrow">{index === 0 ? "Start" : index === optimization.route.length - 1 ? "End" : `Stop ${index}`}</p>
-                      <h4>{stop.name}</h4>
-                      <p>{stop.address}</p>
-                    </div>
-                    <div className="timeline-meta">
-                      <span>到達 {formatTime(stop.arrivalMinutes)}</span>
-                      <span>離開 {formatTime(stop.departureMinutes)}</span>
-                      <span>前段 {formatDuration(stop.travelMinutes)}</span>
-                      <span>{stop.distanceKm.toFixed(1)} km</span>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </div>
+            <VisitList
+              route={optimization.route}
+              summary={optimization.summary}
+              onToggleCompleted={toggleStopCompleted}
+              onSavePlan={onSavePlan}
+            />
           ) : (
             <div className="warning-card">
               <h4>這組時間窗目前無可行解</h4>
@@ -844,10 +906,22 @@ function PlannerPage({ draftPlan, patients, onChangeDraft, onOptimize, onSavePla
           )
         ) : (
           <p className="muted">
-            目前尚未計算。此版本採前端最佳化，旅行時間以座標估算；未串接 API 前，可先用它驗證流程與資料結構。
+            設定完起點、優化目標與個案時間後，點下方按鈕即可計算建議的拜訪順序。
           </p>
         )}
       </section>
+
+      <SavedLocationsModal
+        isOpen={isLocationsModalOpen}
+        savedLocations={savedLocations}
+        onClose={() => setIsLocationsModalOpen(false)}
+        onChange={onChangeSavedLocations}
+      />
+
+      <ObjectiveInfoModal
+        isOpen={isObjectiveInfoOpen}
+        onClose={() => setIsObjectiveInfoOpen(false)}
+      />
     </div>
   );
 }
@@ -916,58 +990,358 @@ function MetricCard({ label, value, hint }) {
   );
 }
 
-function LocationEditor({ title, location, onChange }) {
-  const [state, setState] = useState({ status: "idle", message: "" });
-  const [lastGeocoded, setLastGeocoded] = useState(location.address?.trim() || "");
+function VisitList({ route, summary, onToggleCompleted, onSavePlan }) {
+  const [showMap, setShowMap] = useState(false);
+  const patientStops = route
+    .map((stop, index) => ({ stop, index }))
+    .filter(({ stop }) => stop.kind === "patient");
+  const completedCount = patientStops.filter(({ stop }) => stop.completed).length;
+  const totalCount = patientStops.length;
+  const progressPercent = totalCount ? Math.round((completedCount / totalCount) * 100) : 0;
+  const nextStopIndex = patientStops.find(({ stop }) => !stop.completed)?.index ?? -1;
+  const fullRouteUrl = createGoogleMapsDirectionsUrl(route);
+
+  return (
+    <div className="visit-list">
+      <div className="progress-card">
+        <div className="progress-meta">
+          <strong>已完成 {completedCount} / {totalCount} 位</strong>
+          <span className="muted">
+            預估工時 {formatDuration(summary.totalWorkMinutes)} · 距離 {summary.totalDistanceKm.toFixed(1)} km
+          </span>
+        </div>
+        <div className="progress-bar">
+          <div className="progress-bar-fill" style={{ width: `${progressPercent}%` }} />
+        </div>
+      </div>
+
+      <ul className="visit-stops">
+        {route.map((stop, index) => {
+          const isStart = index === 0;
+          const isEnd = index === route.length - 1 && stop.kind === "end";
+          const isPatient = stop.kind === "patient";
+          const isNext = isPatient && index === nextStopIndex;
+          const navUrl = createSingleDestinationUrl(stop);
+          const stopLabel = isStart ? "起點" : isEnd ? "終點" : `Stop ${patientStops.findIndex((p) => p.index === index) + 1}`;
+
+          return (
+            <li
+              key={stop.id}
+              className={`visit-stop ${stop.completed ? "visit-stop-done" : ""} ${isNext ? "visit-stop-next" : ""}`}
+            >
+              <div className="visit-stop-leading">
+                {isPatient ? (
+                  <label className="visit-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={!!stop.completed}
+                      onChange={() => onToggleCompleted(stop.id)}
+                    />
+                    <span />
+                  </label>
+                ) : (
+                  <div className={`visit-marker ${isStart ? "marker-start" : "marker-end"}`}>
+                    {isStart ? "起" : "終"}
+                  </div>
+                )}
+              </div>
+
+              <div className="visit-stop-body">
+                <div className="visit-stop-header">
+                  <span className="eyebrow">{stopLabel}</span>
+                  {isNext ? <span className="badge badge-next">★ 下一站</span> : null}
+                </div>
+                <h4>{stop.name}</h4>
+                <p className="muted visit-stop-address">{stop.address}</p>
+                <div className="visit-stop-meta muted">
+                  {!isStart ? <span>到達 {formatTime(stop.arrivalMinutes)}</span> : <span>出發 {formatTime(stop.departureMinutes)}</span>}
+                  {!isStart ? <span>· 從上一站約 {formatDuration(stop.travelMinutes)}</span> : null}
+                </div>
+              </div>
+
+              {!isStart && navUrl ? (
+                <a
+                  className="button button-primary visit-nav-button"
+                  href={navUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  導航
+                </a>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="visit-list-footer">
+        <button
+          type="button"
+          className="button button-ghost"
+          onClick={() => setShowMap((value) => !value)}
+        >
+          {showMap ? "隱藏地圖" : "顯示路線地圖"}
+        </button>
+        <div className="button-row">
+          {fullRouteUrl ? (
+            <a
+              className="button button-secondary"
+              href={fullRouteUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              整條路線匯出
+            </a>
+          ) : null}
+          <button className="button button-primary" onClick={onSavePlan}>
+            保存到歷史
+          </button>
+        </div>
+      </div>
+
+      {showMap ? (
+        <div className="visit-map">
+          <RouteMap route={route} />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SavedLocationPicker({ label, value, savedLocations, onChange, onManage, allowNone }) {
+  const selectedId = value?.id ?? "";
+
+  function handleChange(event) {
+    const id = event.target.value;
+    if (!id) {
+      onChange(null);
+      return;
+    }
+    const matched = savedLocations.find((item) => item.id === id);
+    if (matched) onChange(matched);
+  }
+
+  const hasLocations = savedLocations.length > 0;
+
+  return (
+    <div className="field-group">
+      <div className="field-label-row">
+        <span>{label}</span>
+        <button type="button" className="link-button" onClick={onManage}>
+          + 管理
+        </button>
+      </div>
+      {hasLocations ? (
+        <select className="picker-select" value={selectedId} onChange={handleChange}>
+          {allowNone ? <option value="">不指定</option> : <option value="" disabled>請選擇地點</option>}
+          {savedLocations.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}（{item.address}）
+            </option>
+          ))}
+        </select>
+      ) : (
+        <button type="button" className="empty-picker" onClick={onManage}>
+          尚未設定，點此新增
+        </button>
+      )}
+    </div>
+  );
+}
+
+function SavedLocationsModal({ isOpen, savedLocations, onClose, onChange }) {
+  const [form, setForm] = useState(emptyLocationForm());
+  const [geocodeState, setGeocodeState] = useState({ status: "idle", message: "" });
+  const [lastGeocoded, setLastGeocoded] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) {
+      setForm(emptyLocationForm());
+      setGeocodeState({ status: "idle", message: "" });
+      setLastGeocoded("");
+    }
+  }, [isOpen]);
 
   async function resolveAddress(address) {
     const trimmed = address.trim();
     if (!trimmed || trimmed === lastGeocoded) return;
     setLastGeocoded(trimmed);
-    setState({ status: "loading", message: "定位中…" });
+    setGeocodeState({ status: "loading", message: "定位中…" });
     const result = await geocodeAddress(trimmed);
     if (!result.ok) {
-      setState({ status: "error", message: result.reason });
+      setGeocodeState({ status: "error", message: result.reason });
       return;
     }
-    onChange({ ...location, address: trimmed, latitude: result.latitude, longitude: result.longitude });
-    setState({
+    setForm((current) => ({
+      ...current,
+      latitude: result.latitude,
+      longitude: result.longitude,
+    }));
+    setGeocodeState({
       status: result.approximate ? "warning" : "success",
-      message: `${result.approximate ? "近似定位" : "已定位"}${result.fromCache ? "（快取）" : ""}`,
+      message: `${result.approximate ? "近似定位" : "已定位"}：${result.displayName}`,
     });
   }
 
   useEffect(() => {
-    const trimmed = location.address?.trim() || "";
+    const trimmed = form.address.trim();
     if (!trimmed || trimmed === lastGeocoded) return;
     const timer = setTimeout(() => resolveAddress(trimmed), 700);
     return () => clearTimeout(timer);
-  }, [location.address]);
+  }, [form.address]);
+
+  if (!isOpen) return null;
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    if (!form.name.trim() || !form.address.trim()) return;
+    const normalized = {
+      id: form.id || crypto.randomUUID(),
+      name: form.name.trim(),
+      address: form.address.trim(),
+      latitude: Number(form.latitude) || 0,
+      longitude: Number(form.longitude) || 0,
+    };
+    const next = form.id
+      ? savedLocations.map((item) => (item.id === form.id ? normalized : item))
+      : [...savedLocations, normalized];
+    onChange(next);
+    setForm(emptyLocationForm());
+    setGeocodeState({ status: "idle", message: "" });
+    setLastGeocoded("");
+  }
+
+  function handleEdit(location) {
+    setForm({
+      id: location.id,
+      name: location.name,
+      address: location.address,
+      latitude: location.latitude,
+      longitude: location.longitude,
+    });
+    setLastGeocoded(location.address?.trim() || "");
+    setGeocodeState({ status: "idle", message: "" });
+  }
+
+  function handleDelete(id) {
+    onChange(savedLocations.filter((item) => item.id !== id));
+    if (form.id === id) {
+      setForm(emptyLocationForm());
+    }
+  }
 
   return (
-    <fieldset className="location-card">
-      <legend>{title}</legend>
-      <label>
-        名稱
-        <input
-          value={location.name}
-          onChange={(event) => onChange({ ...location, name: event.target.value })}
-          placeholder="住家 / 診所 / 自訂地點"
-        />
-      </label>
-      <label>
-        地址
-        <input
-          value={location.address}
-          onChange={(event) => onChange({ ...location, address: event.target.value })}
-          placeholder="台北市..."
-        />
-      </label>
-      {state.message ? (
-        <p className={`muted geocode-hint geocode-${state.status}`}>{state.message}</p>
-      ) : null}
-    </fieldset>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+        <header className="modal-header">
+          <h3>常用地點</h3>
+          <button type="button" className="icon-button" onClick={onClose} aria-label="關閉">
+            ×
+          </button>
+        </header>
+
+        <div className="modal-body">
+          <form className="form-stack" onSubmit={handleSubmit}>
+            <label>
+              名稱
+              <input
+                value={form.name}
+                onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                placeholder="住家 / A 診所 / B 醫院"
+              />
+            </label>
+            <label>
+              地址
+              <input
+                value={form.address}
+                onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
+                placeholder="台北市..."
+              />
+            </label>
+            {geocodeState.message ? (
+              <p className={`muted geocode-hint geocode-${geocodeState.status}`}>
+                {geocodeState.message}
+              </p>
+            ) : null}
+            <div className="button-row">
+              <button type="submit" className="button button-primary">
+                {form.id ? "更新地點" : "新增地點"}
+              </button>
+              {form.id ? (
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() => {
+                    setForm(emptyLocationForm());
+                    setGeocodeState({ status: "idle", message: "" });
+                    setLastGeocoded("");
+                  }}
+                >
+                  取消編輯
+                </button>
+              ) : null}
+            </div>
+          </form>
+
+          <div className="modal-divider" />
+
+          <div className="list-stack">
+            {savedLocations.length ? (
+              savedLocations.map((item) => (
+                <article key={item.id} className="saved-location-card">
+                  <div>
+                    <strong>{item.name}</strong>
+                    <p className="muted">{item.address}</p>
+                  </div>
+                  <div className="button-row">
+                    <button className="button button-secondary" onClick={() => handleEdit(item)}>
+                      編輯
+                    </button>
+                    <button className="button button-ghost" onClick={() => handleDelete(item.id)}>
+                      刪除
+                    </button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <p className="muted">尚未建立任何常用地點。</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
+}
+
+function ObjectiveInfoModal({ isOpen, onClose }) {
+  if (!isOpen) return null;
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card modal-card-sm" onClick={(event) => event.stopPropagation()}>
+        <header className="modal-header">
+          <h3>優化目標說明</h3>
+          <button type="button" className="icon-button" onClick={onClose} aria-label="關閉">
+            ×
+          </button>
+        </header>
+        <div className="modal-body">
+          <p>
+            <strong>⏱ 省時間</strong>：以平均車速估算每段行車分鐘數，挑總時間最短的拜訪順序。適合路上常塞車的市區。
+          </p>
+          <p>
+            <strong>⛽ 省油費</strong>：只看路徑總公里數，挑距離最短的順序。通常較少高速繞路，油費較省，但可能稍慢。
+          </p>
+          <p className="muted">
+            個案分布若不複雜，兩者結果可能相同。
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function emptyLocationForm() {
+  return { id: "", name: "", address: "", latitude: 0, longitude: 0 };
 }
 
 export default App;
