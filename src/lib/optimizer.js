@@ -1,4 +1,5 @@
 import { parseTimeToMinutes } from "./planner";
+import { isValidCoordinate } from "./geocoding";
 
 const AVERAGE_SPEED_KMH = 28;
 
@@ -75,12 +76,25 @@ export function optimizeRoute(plan) {
     return { route: null, reason: "請先至少加入一位個案。" };
   }
 
-  if (patients.some((patient) => !patient.latitude || !patient.longitude)) {
-    return { route: null, reason: "每位個案都需要座標才能進行初版最佳化。" };
+  const missingPatient = patients.find(
+    (patient) => !isValidCoordinate(patient.latitude, patient.longitude),
+  );
+  if (missingPatient) {
+    return {
+      route: null,
+      reason: `個案「${missingPatient.name}」缺少有效座標，請到個案管理點「查詢座標」或手動輸入。`,
+    };
   }
 
   const start = stops[0];
   const end = stops[stops.length - 1];
+  if (!isValidCoordinate(start.latitude, start.longitude)) {
+    return { route: null, reason: "起點座標無效，請輸入地址後點「查詢座標」。" };
+  }
+  if (!isValidCoordinate(end.latitude, end.longitude)) {
+    return { route: null, reason: "終點座標無效，請輸入地址後點「查詢座標」。" };
+  }
+
   const startTimeMinutes = parseTimeToMinutes(plan.startTime);
   const objectiveWeight = plan.objective === "distance" ? "distanceKm" : "travelMinutes";
 
@@ -193,20 +207,28 @@ export function calculateRouteSummary(route, plan) {
 export function createGoogleMapsDirectionsUrl(route) {
   const start = route[0];
   const end = route.at(-1);
-  const waypoints = route
-    .slice(1, -1)
-    .map((stop) => `${stop.latitude},${stop.longitude}`)
-    .join("|");
 
-  const url = new URL("https://www.google.com/maps/dir/");
-  url.searchParams.set("api", "1");
-  url.searchParams.set("origin", `${start.latitude},${start.longitude}`);
-  url.searchParams.set("destination", `${end.latitude},${end.longitude}`);
+  if (!isValidCoordinate(start.latitude, start.longitude)) return null;
+  if (!isValidCoordinate(end.latitude, end.longitude)) return null;
 
-  if (waypoints) {
-    url.searchParams.set("waypoints", waypoints);
+  const middle = route.slice(1, -1);
+  if (middle.some((stop) => !isValidCoordinate(stop.latitude, stop.longitude))) {
+    return null;
   }
 
-  url.searchParams.set("travelmode", "driving");
-  return url.toString();
+  const params = [
+    "api=1",
+    `origin=${start.latitude},${start.longitude}`,
+    `destination=${end.latitude},${end.longitude}`,
+    "travelmode=driving",
+  ];
+
+  if (middle.length) {
+    const waypoints = middle
+      .map((stop) => `${stop.latitude},${stop.longitude}`)
+      .join("|");
+    params.push(`waypoints=${encodeURIComponent(waypoints)}`);
+  }
+
+  return `https://www.google.com/maps/dir/?${params.join("&")}`;
 }

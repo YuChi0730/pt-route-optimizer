@@ -21,6 +21,7 @@ import {
   savePatients,
   saveRoutePlans,
 } from "./lib/storage";
+import { geocodeAddress } from "./lib/geocoding";
 import { useMemo, useState } from "react";
 
 const navigationItems = [
@@ -304,6 +305,29 @@ function DashboardPage({ plans, patients, activePlan }) {
 
 function PatientsPage({ patients, onChange }) {
   const [form, setForm] = useState(createEmptyPatient());
+  const [geocodeState, setGeocodeState] = useState({ status: "idle", message: "" });
+
+  async function handleGeocode() {
+    if (!form.address.trim()) {
+      setGeocodeState({ status: "error", message: "請先輸入地址。" });
+      return;
+    }
+    setGeocodeState({ status: "loading", message: "查詢中…" });
+    const result = await geocodeAddress(form.address);
+    if (!result.ok) {
+      setGeocodeState({ status: "error", message: result.reason });
+      return;
+    }
+    setForm((current) => ({
+      ...current,
+      latitude: result.latitude,
+      longitude: result.longitude,
+    }));
+    setGeocodeState({
+      status: "success",
+      message: `已定位：${result.displayName}${result.fromCache ? "（快取）" : ""}`,
+    });
+  }
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -377,6 +401,21 @@ function PatientsPage({ patients, onChange }) {
               placeholder="台北市大安區..."
             />
           </label>
+          <div className="button-row">
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={handleGeocode}
+              disabled={geocodeState.status === "loading"}
+            >
+              {geocodeState.status === "loading" ? "查詢中…" : "查詢座標"}
+            </button>
+            {geocodeState.message ? (
+              <span className={`muted geocode-hint geocode-${geocodeState.status}`}>
+                {geocodeState.message}
+              </span>
+            ) : null}
+          </div>
           <div className="inline-fields">
             <label>
               緯度
@@ -805,6 +844,26 @@ function MetricCard({ label, value, hint }) {
 }
 
 function LocationEditor({ title, location, onChange }) {
+  const [state, setState] = useState({ status: "idle", message: "" });
+
+  async function handleGeocode() {
+    if (!location.address?.trim()) {
+      setState({ status: "error", message: "請先輸入地址。" });
+      return;
+    }
+    setState({ status: "loading", message: "查詢中…" });
+    const result = await geocodeAddress(location.address);
+    if (!result.ok) {
+      setState({ status: "error", message: result.reason });
+      return;
+    }
+    onChange({ ...location, latitude: result.latitude, longitude: result.longitude });
+    setState({
+      status: "success",
+      message: `已定位${result.fromCache ? "（快取）" : ""}`,
+    });
+  }
+
   return (
     <fieldset className="location-card">
       <legend>{title}</legend>
@@ -824,6 +883,19 @@ function LocationEditor({ title, location, onChange }) {
           placeholder="台北市..."
         />
       </label>
+      <div className="button-row">
+        <button
+          className="button button-secondary"
+          type="button"
+          onClick={handleGeocode}
+          disabled={state.status === "loading"}
+        >
+          {state.status === "loading" ? "查詢中…" : "查詢座標"}
+        </button>
+        {state.message ? (
+          <span className={`muted geocode-hint geocode-${state.status}`}>{state.message}</span>
+        ) : null}
+      </div>
       <div className="inline-fields">
         <label>
           緯度

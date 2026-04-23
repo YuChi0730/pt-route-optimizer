@@ -406,3 +406,17 @@ textarea {
   font-family: inherit;
 }
 
+
+.geocode-hint {
+  font-size: 0.85rem;
+  align-self: center;
+}
+.geocode-hint.geocode-success {
+  color: #2f855a;
+}
+.geocode-hint.geocode-error {
+  color: #c53030;
+}
+.geocode-hint.geocode-loading {
+  color: #4a5568;
+}
