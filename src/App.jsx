@@ -586,7 +586,6 @@ function PlannerPage({
   const [isLocationsModalOpen, setIsLocationsModalOpen] = useState(false);
   const [isObjectiveInfoOpen, setIsObjectiveInfoOpen] = useState(false);
   const [showEnd, setShowEnd] = useState(!!draftPlan.endLocation);
-  const [expandedLatestStopIds, setExpandedLatestStopIds] = useState([]);
 
   useEffect(() => {
     if (draftPlan.endLocation) setShowEnd(true);
@@ -622,7 +621,6 @@ function PlannerPage({
           longitude: patient.longitude,
           serviceDuration: patient.defaultServiceDuration,
           timeWindowStart: "08:00",
-          timeWindowEnd: "18:00",
         },
       ],
       optimization: null,
@@ -662,13 +660,6 @@ function PlannerPage({
     }));
   }
 
-  function toggleLatestArrival(patientId) {
-    setExpandedLatestStopIds((current) =>
-      current.includes(patientId)
-        ? current.filter((id) => id !== patientId)
-        : [...current, patientId],
-    );
-  }
 
   const optimization = draftPlan.optimization;
 
@@ -862,32 +853,6 @@ function PlannerPage({
                     />
                   </label>
                 </div>
-                <div className="planner-advanced-toggle-row">
-                  <button
-                    type="button"
-                    className={`planner-advanced-toggle ${expandedLatestStopIds.includes(patient.patientId) ? "planner-advanced-toggle-active" : ""}`}
-                    onClick={() => toggleLatestArrival(patient.patientId)}
-                  >
-                    {expandedLatestStopIds.includes(patient.patientId) ? "隱藏最晚到達時間" : "需要限制最晚到達時間？"}
-                  </button>
-                  {!expandedLatestStopIds.includes(patient.patientId) && patient.timeWindowEnd !== "18:00" ? (
-                    <span className="planner-advanced-summary">目前最晚 {patient.timeWindowEnd}</span>
-                  ) : null}
-                </div>
-                {expandedLatestStopIds.includes(patient.patientId) ? (
-                  <div className="inline-fields planner-fields planner-fields-secondary">
-                    <label>
-                      最晚到達
-                      <input
-                        type="time"
-                        value={patient.timeWindowEnd}
-                        onChange={(event) =>
-                          updateSelectedPatient(patient.patientId, "timeWindowEnd", event.target.value)
-                        }
-                      />
-                  </label>
-                </div>
-                ) : null}
               </article>
             ))}
           </div>

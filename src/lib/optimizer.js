@@ -40,7 +40,6 @@ function buildStops(plan) {
       longitude: Number(plan.startLocation?.longitude),
       serviceDuration: 0,
       timeWindowStart: plan.startTime,
-      timeWindowEnd: "23:59",
       kind: "start",
     },
     ...plan.selectedPatients.map((patient) => ({
@@ -51,7 +50,6 @@ function buildStops(plan) {
       longitude: Number(patient.longitude),
       serviceDuration: Number(patient.serviceDuration),
       timeWindowStart: patient.timeWindowStart,
-      timeWindowEnd: patient.timeWindowEnd,
       kind: "patient",
     })),
   ];
@@ -65,7 +63,6 @@ function buildStops(plan) {
       longitude: Number(plan.endLocation.longitude),
       serviceDuration: 0,
       timeWindowStart: plan.startTime,
-      timeWindowEnd: "23:59",
       kind: "end",
     });
   }
@@ -110,7 +107,6 @@ export function optimizeRoute(plan) {
 
   let bestRoute = null;
   let bestCost = Number.POSITIVE_INFINITY;
-  let infeasibleCount = 0;
 
   function search(currentStop, remainingStops, currentTime, pathCost, routeSoFar) {
     if (pathCost >= bestCost) {
@@ -146,13 +142,7 @@ export function optimizeRoute(plan) {
     for (const nextStop of remainingStops) {
       const travel = calculateTravelMinutes(currentStop, nextStop);
       const earliestArrival = parseTimeToMinutes(nextStop.timeWindowStart);
-      const latestArrival = parseTimeToMinutes(nextStop.timeWindowEnd);
       const arrivalMinutes = Math.max(currentTime + travel.travelMinutes, earliestArrival);
-
-      if (arrivalMinutes > latestArrival) {
-        infeasibleCount += 1;
-        continue;
-      }
 
       const departureMinutes = arrivalMinutes + nextStop.serviceDuration;
       const nextRoute = [
@@ -193,11 +183,7 @@ export function optimizeRoute(plan) {
   );
 
   if (!bestRoute) {
-    const reason = infeasibleCount
-      ? "所有候選路徑都撞到時間窗限制，建議放寬最晚到達時間或提早出發。"
-      : "找不到可行路徑，請檢查座標與時間設定。";
-
-    return { route: null, reason };
+    return { route: null, reason: "目前無法產生可行路徑，請確認起點與個案座標是否完整。" };
   }
 
   return { route: bestRoute, reason: null };

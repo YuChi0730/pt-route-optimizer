@@ -370,45 +370,8 @@ textarea {
   flex: 1 1 180px;
 }
 
-.planner-fields-secondary {
-  width: 100%;
-}
-
-.planner-fields-secondary label {
-  width: min(240px, 100%);
-}
-
 .planner-remove-button {
   flex-shrink: 0;
-}
-
-.planner-advanced-toggle-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  flex-wrap: wrap;
-}
-
-.planner-advanced-toggle {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #1d4ed8;
-  font-weight: 600;
-}
-
-.planner-advanced-toggle:hover {
-  color: #163fb3;
-}
-
-.planner-advanced-toggle-active {
-  color: #6f7784;
-}
-
-.planner-advanced-summary {
-  font-size: 0.88rem;
-  color: rgba(20, 33, 61, 0.6);
 }
 
 .location-card {
@@ -740,14 +703,6 @@ textarea {
     font-size: 0.94rem;
   }
 
-  .planner-fields-secondary {
-    grid-template-columns: 1fr;
-  }
-
-  .planner-fields-secondary label {
-    width: 100%;
-  }
-
   .planner-remove-button {
     align-self: start;
     justify-self: end;
@@ -755,21 +710,6 @@ textarea {
     min-height: auto;
     color: #8a93a3;
     white-space: nowrap;
-  }
-
-  .planner-advanced-toggle-row {
-    gap: 6px;
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .planner-advanced-toggle {
-    text-align: left;
-    font-size: 0.92rem;
-  }
-
-  .planner-advanced-summary {
-    font-size: 0.82rem;
   }
 
   .planner-action-bar {
