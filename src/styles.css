@@ -709,12 +709,17 @@ textarea {
 
   .planner-card-header {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px;
+    align-items: start;
   }
 
   .planner-card h4 {
     font-size: 1.15rem;
+  }
+
+  .planner-card-heading {
+    min-width: 0;
   }
 
   .planner-card-heading > p:not(.eyebrow) {
@@ -744,10 +749,12 @@ textarea {
   }
 
   .planner-remove-button {
-    align-self: flex-start;
+    align-self: start;
+    justify-self: end;
     padding: 0;
     min-height: auto;
     color: #8a93a3;
+    white-space: nowrap;
   }
 
   .planner-advanced-toggle-row {
