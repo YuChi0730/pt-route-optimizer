@@ -226,14 +226,38 @@ button {
   font-weight: 600;
 }
 
+.inline-fields > *,
+.planner-fields > * {
+  min-width: 0;
+}
+
+.inline-fields label,
+.planner-fields label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  font-weight: 600;
+}
+
 input,
 select,
 textarea {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding: 12px 14px;
   border-radius: 14px;
   border: 1px solid rgba(20, 33, 61, 0.16);
   background: #fbfcfe;
+}
+
+input[type="date"],
+input[type="time"],
+input[type="number"],
+.picker-select {
+  inline-size: 100%;
+  min-inline-size: 0;
 }
 
 textarea {
@@ -666,6 +690,13 @@ textarea {
   .picker-select,
   .empty-picker {
     min-height: 52px;
+  }
+
+  input[type="date"],
+  input[type="time"] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
   }
 
   .planner-card {
